@@ -1,0 +1,3 @@
+[submodule "src/BasePixel/CMSPixelDecoder"]
+	path = src/BasePixel/CMSPixelDecoder
+	url = git@github.com:simonspa/CMSPixelDecoder.git
