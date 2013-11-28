@@ -208,7 +208,7 @@ int decode_digital_readout(DecodedReadoutModule * obj, short data [], int nwords
         if (retval < 0)
             return retval;
         bit_offset = retval;
-    } else {
+    } else if (!(flags & DRO_WITHOUT_ROC_HEADER)) {
         retval = find_roc_header(data, nwords, bit_offset);
         if (retval < 0)
             return retval;
@@ -218,10 +218,12 @@ int decode_digital_readout(DecodedReadoutModule * obj, short data [], int nwords
     /* Iterate over the ROC readouts. These are sequences of a ROC header
        followed by 6 words of data for each pixel hit. */
     for (int i = 0; i < nroc; i++) {
-        retval = decode_roc_header(data, nwords, bit_offset, 0);
-        if (retval < 0)
-            return retval;
-        bit_offset = retval;
+        if (!(flags & DRO_WITHOUT_ROC_HEADER)) {
+            retval = decode_roc_header(data, nwords, bit_offset, 0);
+            if (retval < 0)
+                return retval;
+            bit_offset = retval;
+        }
 
         int nhits = 0;
         /* Iterate over the hits for this ROC. */

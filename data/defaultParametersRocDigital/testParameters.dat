@@ -115,8 +115,8 @@ XrayMaxEff 0.01
 HRPixelMapAquisitionTime 10.0
 # Number of consecutive measurements
 HRPixelMapRepetitions 1
-# Trigger rate (40000 / (256 * N)) kHz
-HRPixelMapTriggerRate 5
+# Trigger rate (40000 / N) kHz
+HRPixelMapTriggerRate 1280
 # Clock stretch factor (Disabled if < 2)
 HRPixelMapClockStretch 0
 # Clock stretch follows Calibrate after N clock cycles (can be negative)

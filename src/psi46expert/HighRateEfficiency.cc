@@ -28,11 +28,9 @@ HREfficiency::~HREfficiency()
 
 void HREfficiency::ModuleAction(void)
 {
-    tbInterface->Flush();
+    TBAnalogInterface * ai = (TBAnalogInterface *) tbInterface;
+    ai->Flush();
 
-    /* ??? */
-    tbInterface->getCTestboard()->DataBlockSize(100);
-    tbInterface->Flush();
 
     /* Unmask all ROCs */
     for (int i = 0; i < module->NRocs(); i++) {
@@ -47,50 +45,35 @@ void HREfficiency::ModuleAction(void)
             }
         }
     }
-    tbInterface->Flush();
-
-    /* Set local trigger and tbm present */
-    tbInterface->SetReg(41, 0x20 | 0x02);
-    tbInterface->Flush();
+    ai->Flush();
 
     /* Send a reset to the chip */
-    tbInterface->Single(RES);
-    tbInterface->Flush();
+    ai->getCTestboard()->Pg_SetCmd(0, PG_RESR);
+    ai->getCTestboard()->Pg_Single();
+    ai->Flush();
+
     gDelay->Mdelay(10);
 
     /* Prepare the data aquisition (store to testboard RAM) */
-    unsigned int data_pointer = tbInterface->getCTestboard()->Daq_Init(30000000);
+    int memsize = ai->getCTestboard()->Daq_Open(30000000);
+    ai->getCTestboard()->Daq_Select_Deser160(4);
 
     /* Enable DMA (direct memory access) controller */
-    tbInterface->getCTestboard()->Daq_Enable();
-
-    /* Set data aquisition to no clear buffer, multi trigger, continuous. */
-    tbInterface->DataCtrl(false, false, true);
-
-    /* Reset the clock counter on the testboard */
-    tbInterface->SetReg(43, (1 << 1));
-
-    /* Set local trigger, tbm present, and run data aquisition */
-    if (module->GetRoc(0)->has_analog_readout())
-        tbInterface->SetReg(41, 0x20 | 0x02 | 0x08);
-    else
-        tbInterface->SetReg(41, 0x20 | 0x01 | 0x08);
-    tbInterface->Flush();
-
-    /* Reset the aquisition on the testboard */
-    tbInterface->SetReg(43, (1 << 0));
+    ai->getCTestboard()->Daq_Start();
 
     /* Get the digital and analog voltages / currents */
     psi::LogInfo() << "Measuring chip voltages and currents ..." << psi::endl;
-    TParameter<float> vd("hr_efficiency_digital_Voltage", tbInterface->GetVD());
-    TParameter<float> id("hr_efficiency_digital_current", tbInterface->GetID());
-    TParameter<float> va("hr_efficiency_analog_voltage", tbInterface->GetVA());
-    TParameter<float> ia("hr_efficiency_analog_current", tbInterface->GetIA());
+    TParameter<float> vd("hr_efficiency_digital_Voltage", ai->GetVD());
+    TParameter<float> id("hr_efficiency_digital_current", ai->GetID());
+    TParameter<float> va("hr_efficiency_analog_voltage", ai->GetVA());
+    TParameter<float> ia("hr_efficiency_analog_current", ai->GetIA());
     vd.Write();
     id.Write();
     va.Write();
     ia.Write();
 
+    int tct = ai->GetParameter("tct");
+    int ttk = ai->GetParameter("ttk");
     /* Set the number of triggers. Total triggers for all pixels: 4160 * ntrig */
     int ntrig = testParameters->HREfficiencyTriggers;
 
@@ -103,55 +86,55 @@ void HREfficiency::ModuleAction(void)
                 if (testRange->IncludesPixel(i, col, row))
                     module->GetRoc(i)->ArmPixel(col, row);
             }
-            tbInterface->CDelay(5000);
-            tbInterface->Flush();
+            ai->CDelay(5000);
+            ai->Flush();
 
             /* Send a reset to the chip */
-            tbInterface->Single(RES);
-            tbInterface->CDelay(500);
-            tbInterface->Flush();
+            ai->getCTestboard()->Pg_SetCmd(0, PG_RESR);
+            ai->getCTestboard()->Pg_Single();
+            ai->CDelay(500);
+            ai->Flush();
 
             /* send ntrig triggers with calibrates */
+            ai->getCTestboard()->Pg_SetCmd(0, PG_CAL + tct);
+            ai->getCTestboard()->Pg_SetCmd(1, PG_TRG + ttk);
+            ai->getCTestboard()->Pg_SetCmd(2, PG_TOK);
             for (int t = 0; t < ntrig; t++) {
-                tbInterface->Single(CAL | TRG | TOK);
-                tbInterface->CDelay(500);
+                ai->getCTestboard()->Pg_Single();
+                ai->CDelay(500);
             }
-            tbInterface->Flush();
+            ai->Flush();
 
             /* Disarm the pixel */
             for (int i = 0; i < module->NRocs(); i++) {
                 if (testRange->IncludesPixel(i, col, row))
                     module->GetRoc(i)->ClrCal();
             }
-            tbInterface->Flush();
+            ai->Flush();
         }
     }
     cout << endl;
 
     /* Stop triggering */
-    tbInterface->Single(RES);
-    tbInterface->Flush();
+    ai->getCTestboard()->Pg_SetCmd(0, PG_RESR);
+    ai->getCTestboard()->Pg_Single();
+    ai->Flush();
 
     /* Wait for data aquisition to finish */
     gDelay->Mdelay(100);
 
-    /* Get pointer to the end of the data block */
-    int data_end = tbInterface->getCTestboard()->Daq_GetPointer();
-    tbInterface->Flush();
-
     /* Disable data aquisition */
-    tbInterface->SetReg(41, 0x20 | 0x02);
-    tbInterface->getCTestboard()->Daq_Disable();
-    tbInterface->DataCtrl(false, false, false);
-    tbInterface->Flush();
+    ai->getCTestboard()->Daq_Stop();
+    ai->Flush();
+
 
     /* Number of words in memory */
-    int nwords = (data_end - data_pointer) / 2;
-    psi::LogInfo() << "Megabytes in RAM: " << nwords * 2. / 1024. / 1024. << psi::endl;
+    //int nwords = (data_end - data_pointer) / 2;
+    //psi::LogInfo() << "Megabytes in RAM: " << nwords * 2. / 1024. / 1024. << psi::endl;
 
     /* Prepare data decoding */
     int nroc = module->NRocs();
-    RAMRawDataReader rd(tbInterface->getCTestboard(), (unsigned int) data_pointer, (unsigned int) data_pointer + 30000000, nwords * 2);
+    RAMRawDataReader rd(ai->getCTestboard(), memsize);
     RawData2RawEvent rs;
     RawEventDecoder ed(nroc, module->GetRoc(0)->has_analog_readout(), module->GetRoc(0)->has_row_address_inverted());
     EfficiencyMapper em(nroc, ntrig);
@@ -214,9 +197,9 @@ void HREfficiency::ModuleAction(void)
     psi::LogInfo() << Form("%-19s %8i", "Decoding problems:", ed.GetDecodingErrors()) << psi::endl;
 
     /* Free the memory in the RAM */
-    tbInterface->getCTestboard()->Daq_Done();
+    ai->getCTestboard()->Daq_Close();
 
     /* Reset the chip */
-    tbInterface->Single(RES);
-    tbInterface->Flush();
+    ai->Single(RES);
+    ai->Flush();
 }

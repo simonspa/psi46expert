@@ -6,6 +6,7 @@
 /* Digital readout flags */
 #define DRO_WITH_TBM 1
 #define DRO_INVERT_ROW_ADDRESS 2
+#define DRO_WITHOUT_ROC_HEADER 4
 
 /* Digital readout error modes */
 #define DRO_ERROR_NO_TBM_HEADER -1

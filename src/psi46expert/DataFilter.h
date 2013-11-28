@@ -26,7 +26,7 @@ public:
     short data[MAXDATASIZE];
     unsigned int dflag[MAXDATASIZE];
 
-    bool IsHeaderOk()  { return (flags & 0xff00) == 0x8000; }
+    bool IsHeaderOk()  { return !!(flags & 0x8000); }
     bool IsData()      { return (flags & 0x01) != 0; }
     bool IsTrigger()   { return (flags & 0x04) != 0; }
     bool IsRocReset()  { return (flags & 0x08) != 0; }
@@ -60,19 +60,17 @@ public:
 
 class RAMRawDataReader : public Pipe {
     CTestboard * board;
-    unsigned int datastart;
-    unsigned int dataend;
     unsigned int databuffersize;
     unsigned int dataptr;
     unsigned int buffersize;
     unsigned int bufferpos;
 
-    unsigned short * buffer;
+    vector<uint16_t> buffer;
     PipeObjectShort s;
 
 public:
     PipeObjectShort * Write();
-    RAMRawDataReader(CTestboard * b, unsigned int ramstart, unsigned int ramend, unsigned int datalength);
+    RAMRawDataReader(CTestboard * b, unsigned int memsize);
     ~RAMRawDataReader();
 };
 
@@ -147,6 +145,7 @@ private:
     bool haveTrigger;
 public:
     int TriggerCounter;
+    int DataCounter;
     int RocSequenceErrorCounter;
 public:
     CEvent * Read();

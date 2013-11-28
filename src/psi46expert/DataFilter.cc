@@ -49,11 +49,12 @@ void CRawEvent::PrintData()
 {
     unsigned int i, nPix;
     if (length < 64) nPix = 0; else nPix = (length - 64) / 6;
+    nPix = length / 2;
     printf("<%4u/%3u>", length, nPix);
     for (i = 0; i < length; i++)
     {
-        printf("%6i", data[i]);
-        PrintDataFlags(i);
+        printf(" 0x%04hx", data[i]);
+        //PrintDataFlags(i);
     }
     cout << "\n";
 }
@@ -98,23 +99,19 @@ void CEvent::print()
 
 #define BLOCKSIZE 32768 /* Must be an even number! */
 
-RAMRawDataReader::RAMRawDataReader(CTestboard * b, unsigned int ramstart, unsigned int ramend, unsigned int length)
+RAMRawDataReader::RAMRawDataReader(CTestboard * b, unsigned int memsize)
 {
-    buffer = new unsigned short [(BLOCKSIZE + 1) / 2];
     buffersize = 0;
     bufferpos = 0;
+    dataptr = 0;
 
     board = b;
-    datastart = ramstart;
-    databuffersize = ramend - ramstart;
-    dataend = datastart + length;
-    dataptr = datastart;
+    databuffersize = memsize;
 }
 
 RAMRawDataReader::~RAMRawDataReader()
 {
-    if (buffer)
-        delete buffer;
+
 }
 
 PipeObjectShort * RAMRawDataReader::Write()
@@ -126,41 +123,27 @@ PipeObjectShort * RAMRawDataReader::Write()
     } else if (buffersize > 0 && bufferpos >= buffersize || buffersize == 0) {
         /* All data was read from the buffer or buffer empty. Get new data from the RAM */
 
-        cout << "> Megabytes left to read: " << (dataend - dataptr) / 1024 / 1024 << " \r";
-        cout.flush();
-
-        /* Check whether there is data left to read */
-        if (dataptr >= dataend) {
-            cout << "                              \r";
-            cout.flush();
-            return NULL;
-        }
-
         /* Read blocks of BLOCKSIZE bytes. */
-        unsigned int bytes = (dataend - dataptr < BLOCKSIZE) ? (dataend - dataptr) : BLOCKSIZE;
-
-        /* Reading smaller amounts leads to corrupt data for some reason. */
-        unsigned int offset = 0;
-        if (bytes < BLOCKSIZE && databuffersize > BLOCKSIZE) {
-            if (dataptr != datastart)
-                offset = BLOCKSIZE - bytes;
-            bytes = BLOCKSIZE;
-        }
+        uint16_t bytes = (databuffersize - dataptr < BLOCKSIZE) ? (databuffersize - dataptr) : BLOCKSIZE;
+        bytes = 20000;
 
         /* Read the data */
         board->Flush();
         board->Clear();
-        memset(buffer, BLOCKSIZE, '0');
-        board->MemRead(dataptr - offset, bytes, (unsigned char *) buffer);
+
+        uint32_t avail;
+        int status = board->Daq_Read(buffer, bytes, avail);
+
+        printf("> Megabytes left to read: %4.1f \r", (avail * 2.0) / 1024 / 1024);
+        cout.flush();
+
         board->Flush();
         board->Clear();
-        dataptr += bytes - offset;
-        if ((bytes % 2) == 1)
-            cout << "reading odd number of bytes!" << endl;
-        if ((offset % 2) == 1)
-            cout << "offset is odd number!" << endl;
-        buffersize = bytes / 2;
-        bufferpos = offset / 2;
+        dataptr += buffer.size();
+        buffersize = buffer.size();
+        if (buffersize == 0)
+            return NULL;
+        bufferpos = 0;
         s.s = buffer[bufferpos++];
         return &s;
     }
@@ -195,16 +178,7 @@ CRawEvent * RawData2RawEvent::Write()
         return NULL;
     }
 
-    /* Read the timestamp (number of clockcycles, 48 bit) */
-    if (!(last = Read()))
-        return NULL;
-    rawevent.time = (unsigned short) last->s;
-    if (!(last = Read()))
-        return NULL;
-    rawevent.time = (rawevent.time << 16) | (unsigned short) last->s;
-    if (!(last = Read()))
-        return NULL;
-    rawevent.time = (rawevent.time << 16) | (unsigned short) last->s;
+    rawevent.time = 0;
 
     /* Read data */
     if (!(last = Read()))
@@ -214,10 +188,20 @@ CRawEvent * RawData2RawEvent::Write()
     while (!(d & 0x8000)) {
         if (rawevent.length < MAXDATASIZE) {
             /* remove the data header and extend the sign */
-            rawevent.data[rawevent.length]
+            for (int i = 0; i < 3; i++) {
+                int shift = (3 - i - 1) * 4;
+                rawevent.data[rawevent.length] = (d & (0xf << shift)) >> shift;
+                rawevent.length++;
+                if (rawevent.length >= MAXDATASIZE) {
+                    /* Buffer overflow */
+                    cout << endl << "RawData2RawEvent: Buffer overflow" << endl;
+                    return NULL;
+                }
+            }
+            /*rawevent.data[rawevent.length]
                 = (d & 0x0800) ? (d & 0x0fff) - 4096 : (d & 0xfff);
             rawevent.dflag[rawevent.length] = (d >> 12) & 7;
-            rawevent.length++;
+            rawevent.length++;*/
         } else {
             /* Buffer overflow */
             cout << endl << "RawData2RawEvent: Buffer overflow" << endl;
@@ -255,11 +239,13 @@ CEvent * RawEventDecoder::Write()
     if (!rawevent) {
         return NULL;
     }
-    decoded_event.isData = rawevent->IsData();
-    decoded_event.isTrigger = rawevent->IsTrigger();
-    decoded_event.isReset = rawevent->IsRocReset();
-    decoded_event.isCalibrate = rawevent->IsCalibrate();
-    decoded_event.isOverflow = rawevent->IsOverflow();
+
+    decoded_event.isData = true;
+    decoded_event.isTrigger = false;
+    decoded_event.isReset = false;
+    decoded_event.isCalibrate = false;
+    decoded_event.isOverflow = false;
+
     decoded_event.timestamp = rawevent->time;
     decoded_event.nRocs = nROCs;
     decoded_event.nHits = 0;
@@ -272,6 +258,7 @@ CEvent * RawEventDecoder::Write()
         } else {
             int ret;
             int flags = this->row_address_inverted ? DRO_INVERT_ROW_ADDRESS : 0;
+            flags |= DRO_WITHOUT_ROC_HEADER;
             ret = decode_digital_readout(&(decoded_event.hits), (short *) rawevent->data, rawevent->length, nROCs, flags);
             decoded_event.nHits = (ret >= 0) ? decoded_event.hits.roc[0].numPixelHits : ret;
         }
@@ -639,6 +626,7 @@ EventCounter::EventCounter()
 {
     haveTrigger = false;
     TriggerCounter = 0;
+    DataCounter = 0;
     RocSequenceErrorCounter = 0;
 }
 
@@ -658,10 +646,9 @@ CEvent * EventCounter::Write()
     if (ev->isTrigger)
         haveTrigger = true;
     if (ev->isData) {
+        DataCounter++;
         if (haveTrigger)
             TriggerCounter++;
-        else
-            cout << "EventCounter: Data event without preceding trigger!" << endl;
         haveTrigger = false;
     }
 
