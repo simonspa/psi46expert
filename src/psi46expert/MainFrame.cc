@@ -290,53 +290,63 @@ MainFrame::MainFrame(const TGWindow * p, UInt_t w, UInt_t h,
   const char * testName;
 
   const char testNames [nTests][14] =
-    { "DacDac", "SCurve", "Bonds", "TrimBits", "AdrDec", "VsfScan", "VsfOpt",
-      //"PhScan", 
-      "PHvsDACs", "PHDacDac", "PHplot", "CalDel", "ThrComp",
-      //DP "Temp", "TempCal",
-      "LinRange", "HldDelOpti", "TimeWalk", "Xray", "ED", "eff", "ThrVtrim",
-      "HR PixelMap", "HR Efficiency", "HR SCurve", "PHcc", "PHtcc", "ThrvsDACs"
+    { "DacDac", 
+      "SCurve", 
+      "Bonds", 
+      "TrimBits", 
+      "AdrDec", 
+      "VsfScan", 
+      "VsfOpt",
+      //"PHscan",
+      "PHvsDACs", 
+      "PHDacDac", 
+      "PHplot",
+      "CalDel", 
+      "ThrComp",
+      "LinRange", 
+      "HldDelOpti", 
+      "TimeWalk", 
+      "Xray", 
+      "ED", 
+      "eff", 
+      "ThrVtrim",
+      "HR PixelMap", 
+      "HR Efficiency", 
+      "HR SCurve",
+      "HR TrimLow",
+      "PHcc", 
+      "PHtcc", 
+      "ThrvsDACs"
     };
 
   const char testTips [nTests][1024] = {
     // PixMap:
-    //"Sends <PixelMapReadouts> calibration signals to each pixel while the other\n"
-    //"pixels are masked and counts how many of the signals are read out.",
+    //"Sends <PixelMapReadouts> calibration signals to each pixel while the other\n pixels are masked and counts how many of the signals are read out.",
     // DacDac:
-    "Scans <Dac1> and <Dac2> and tests the efficiency for one pixel (or all pixels\n"
-    "in the test range) using <DacNTrig> calibration signals for each value pair. ",
+    "Scans <Dac1> and <Dac2> and tests the efficiency for one pixel (or all pixels\n in the test range) using <DacNTrig> calibration signals for each value pair. ",
      // SCurve:
-    "Determines the threshold of each pixel varying VCal (<SCurveMode> = 1) or\n"
-    "VthrComp (<SCurveMode> = 2) and scans +/- 16 DAC units around the threshold\n"
-    "to determine the noise of the pixel pre-amplifier.",
+    "Determines the threshold of each pixel varying VCal (<SCurveMode> = 1) or\n VthrComp (<SCurveMode> = 2) and scans +/- 16 DAC units around the threshold\n to determine the noise of the pixel pre-amplifier.",
      // BondMap:
-    "Sends calibration signals through the sensor to determine whether a bump bond\n"
-    "to the ROC is present for each pixel or not.",
+    "Sends calibration signals through the sensor to determine whether a bump bond\n to the ROC is present for each pixel or not.",
     // TrimBits:
     "",
-     // AdrLev:
+    // AdrDec:
+    "Sends one calibration signal to every pixel and decodes the read out pixel address\n and compares it to the expected pixel address.",
+    // VsfScan:
+    "",
+    // VsfOpt:
     "",
     // PhScan:
-    //"Scans each DAC parameter and measures the pulse height\n"
-    //"with respect to Vcal for each value of each DAC.",
-    // PH:
-    "Scans DAC <PHMode> to determine the pulse height for each value or, if <PHMode> = 0,\n"
-    "uses the current DAC parameters and measures the pulse height for every pixel.",
-    // Thr:
-    "Determines the threshold at which a pixel becomes active varying a DAC that\n"
-    "depends on the <ThresholdMode>.",
-    // AdrDec:
-    "Sends one calibration signal to every pixel and decodes the read out pixel address\n"
-    "and compares it to the expected pixel address.",
+    //"Scans each DAC parameter and measures the pulse height\n with respect to Vcal for each value of each DAC.",
+    // PHvsDACs:
+    "Scans DAC <PHMode> to determine the pulse height for each value or, if <PHMode> = 0,\n uses the current DAC parameters and measures the pulse height for every pixel.",
+    // PHDacDac:
+    "",
+    // PHplot:
+    "",
     // CalDel:
     "",
     // ThrComp:
-    "",
-    // Temp:
-    "",
-    // TempCal:
-    "",
-    // VsfOpt:
     "",
     // LinRange:
     "",
@@ -345,23 +355,27 @@ MainFrame::MainFrame(const TGWindow * p, UInt_t w, UInt_t h,
     // TimeWalk:
     "",
     // Xray:
-    "Scans VthrComp from <XrayVthrCompMin> to <XrayVthrCompMax> and sends <XrayNTrig> triggers\n"
-    "for each value to determine the number of x-ray hits.",
-    // VsfScan:
+    "Scans VthrComp from <XrayVthrCompMin> to <XrayVthrCompMax> and sends <XrayNTrig> triggers\n for each value to determine the number of x-ray hits.",
+    // ED:
     "",
-    // AdrDec2:
+    // eff:
+    "",
+    // ThrVtrim:
     "",
     // HR PixelMap:
-    "Takes data by sending periodic triggers with a frequency determined by <HRPixelMapTriggerRate>\n"
-    "for some time given by <HRPixelMapAquisitionTime> and creates hit maps, pulse height maps, etc.",
+    "Takes data by sending periodic triggers with a frequency determined by <HRPixelMapTriggerRate>\n for some time given by <HRPixelMapAquisitionTime> and creates hit maps, pulse height maps, etc.",
     // HR Efficiency:
-    "Sends <HREfficiencyTriggers> calibration signals to each pixel while all other\n"
-    "(unmasked) pixels are enabled and counts the number of calibration signals read out\n"
-    "distinguishing between external hits and calibration signals using the pixel address.",
+    "Sends <HREfficiencyTriggers> calibration signals to each pixel while all other\n (unmasked) pixels are enabled and counts the number of calibration signals read out\n distinguishing between external hits and calibration signals using the pixel address.",
     // HR Scurve:
     "",
+    // HR TrimLow:
     "",
-    ""
+    // PHcc:
+    "",
+    // PHtcc:
+    "",
+    // ThrvsDACs:
+    "Determines the threshold at which a pixel becomes active varying a DAC that\n depends on the <ThresholdMode>.",
   };
 
   for( int i = nTests - 1; i >= 0; i--) {
@@ -808,38 +822,35 @@ void MainFrame::DoTest()
     switch( iTest ) {
       //DP case 0 : testToDo = new PixelAlive(testRangeFull, controlNetwork->GetTestParameters(), tbInterface); break;
     case  0 : testToDo = new DacDependency(testRange, controlNetwork->GetTestParameters(), tbInterface); break;
-      //DP case  1 : testToDo = new SCurveTest(testRangeFull, controlNetwork->GetTestParameters(), tbInterface); break;
+    //DP case  1 : testToDo = new SCurveTest(testRangeFull, controlNetwork->GetTestParameters(), tbInterface); break;
     case  1: testToDo = new SCplot( testRange, controlNetwork->GetTestParameters(), tbInterface); break;
     case  2 : testToDo = new BumpBonding(testRangeFull, controlNetwork->GetTestParameters(), tbInterface); break;
     case  3 : testToDo = new TrimBits(testRangeFull, controlNetwork->GetTestParameters(), tbInterface); break;
-      //DP case  5 : testToDo = new AddressLevels(testRangeFull, controlNetwork->GetTestParameters(), tbInterface); break;
     case  4 : testToDo = new AddressDecoding(testRangeFull, controlNetwork->GetTestParameters(), tbInterface, false); break;
     case  5: testToDo = new VsfScan(testRangeFull, controlNetwork->GetTestParameters(), tbInterface); break;
     case  6: testToDo = new VsfOptimization(testRangeFull, controlNetwork->GetTestParameters(), tbInterface); break;
       //case  7 : testToDo = new PHscan(testRange, controlNetwork->GetTestParameters(), tbInterface); break;
       //DP case  6 : testToDo = new PhDacOverview(testRange, controlNetwork->GetTestParameters(), tbInterface); break;
-    case  8: testToDo = new DACscan( testRange, controlNetwork->GetTestParameters(), tbInterface); break;
-    case  9: testToDo = new PHDacDac( testRange, controlNetwork->GetTestParameters(), tbInterface); break;
-    case 10: testToDo = new PHplot( testRange, controlNetwork->GetTestParameters(), tbInterface); break;
+    case  7: testToDo = new DACscan( testRange, controlNetwork->GetTestParameters(), tbInterface); break;
+    case  8: testToDo = new PHDacDac( testRange, controlNetwork->GetTestParameters(), tbInterface); break;
+    case  9: testToDo = new PHplot( testRange, controlNetwork->GetTestParameters(), tbInterface); break;
       //DP case  8 : testToDo = new ThresholdTest(testRangeFull, controlNetwork->GetTestParameters(), tbInterface); break;
-    case 11: testToDo = new CalDelay(testRangeFull, controlNetwork->GetTestParameters(), tbInterface); break;
-    case 12: testToDo = new ThrComp(testRangeFull, controlNetwork->GetTestParameters(), tbInterface); break;
-      //DP case 12: testToDo = new TemperatureTest(testRangeFull, controlNetwork->GetTestParameters(), tbInterface); break;
-      //DP case 13: testToDo = new TemperatureCalibration(testRangeFull, controlNetwork->GetTestParameters(), tbInterface); break;
-    case 13: testToDo = new ChipVariation(testRange, controlNetwork->GetTestParameters(), tbInterface); break;
-    case 14: testToDo = new VhldDelOptimization(testRange, controlNetwork->GetTestParameters(), tbInterface); break;
-    case 15: testToDo = new TimeWalkStudy(testRange, controlNetwork->GetTestParameters(), tbInterface); break;
-    case 16: testToDo = new Xray(testRangeFull, controlNetwork->GetTestParameters(), tbInterface); break;
-    case 17: testToDo = new ED( testRange, controlNetwork->GetTestParameters(), tbInterface); break;
-    case 18: testToDo = new Eff( testRange, controlNetwork->GetTestParameters(), tbInterface); break;
-    case 19: testToDo = new ThrVtrim( testRange, controlNetwork->GetTestParameters(), tbInterface); break;
-    case 20: testToDo = new HRPixelMap(testRangeFull, controlNetwork->GetTestParameters(), tbInterface); break;
-    case 21: testToDo = new HREfficiency(testRangeFull, controlNetwork->GetTestParameters(), tbInterface); break;
-    case 22: testToDo = new HRSCurve(testRange, controlNetwork->GetTestParameters(), tbInterface); break;
+    case 10: testToDo = new CalDelay(testRangeFull, controlNetwork->GetTestParameters(), tbInterface); break;
+    case 11: testToDo = new ThrComp(testRangeFull, controlNetwork->GetTestParameters(), tbInterface); break;
+    case 12: testToDo = new ChipVariation(testRange, controlNetwork->GetTestParameters(), tbInterface); break;
+    case 13: testToDo = new VhldDelOptimization(testRange, controlNetwork->GetTestParameters(), tbInterface); break;
+    case 14: testToDo = new TimeWalkStudy(testRange, controlNetwork->GetTestParameters(), tbInterface); break;
+    case 15: testToDo = new Xray(testRangeFull, controlNetwork->GetTestParameters(), tbInterface); break;
+    case 16: testToDo = new ED( testRange, controlNetwork->GetTestParameters(), tbInterface); break;
+    case 17: testToDo = new Eff( testRange, controlNetwork->GetTestParameters(), tbInterface); break;
+    case 18: testToDo = new ThrVtrim( testRange, controlNetwork->GetTestParameters(), tbInterface); break;
+    case 19: testToDo = new HRPixelMap(testRangeFull, controlNetwork->GetTestParameters(), tbInterface); break;
+    case 20: testToDo = new HREfficiency(testRangeFull, controlNetwork->GetTestParameters(), tbInterface); break;
+    case 21: testToDo = new HRSCurve(testRange, controlNetwork->GetTestParameters(), tbInterface); break;
+    case 22: testToDo = new HRTrimLow(testRangeFull, controlNetwork->GetTestParameters(), tbInterface); break;
     case 23: testToDo = new PHcc( testRange, controlNetwork->GetTestParameters(), tbInterface); break;
     case 24: testToDo = new PHtcc( testRange, controlNetwork->GetTestParameters(), tbInterface); break;
     case 25: testToDo = new ThrvsDACs( testRange, controlNetwork->GetTestParameters(), tbInterface); break;
-      //case 24: testToDo = new HRTrimLow(testRangeFull, controlNetwork->GetTestParameters(), tbInterface); break;
     }
 
     testToDo->ControlNetworkAction(controlNetwork);

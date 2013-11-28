@@ -48,11 +48,11 @@ void HRSCurve::ModuleAction(void)
 
     /* Get the digital and analog voltages / currents */
     psi::LogInfo() << "Measuring chip voltages and currents ..." << psi::endl;
-    TBAnalogInterface * ai = (TBAnalogInterface *) tbInterface;
-    TParameter<float> vd("hr_scurve_digital_voltage", ai->GetVD());
-    TParameter<float> id("hr_scurve_digital_current", ai->GetID());
-    TParameter<float> va("hr_scurve_analog_voltage", ai->GetVA());
-    TParameter<float> ia("hr_scurve_analog_current", ai->GetIA());
+
+    TParameter<float> vd("hr_scurve_digital_voltage", tbInterface->GetVD());
+    TParameter<float> id("hr_scurve_digital_current", tbInterface->GetID());
+    TParameter<float> va("hr_scurve_analog_voltage", tbInterface->GetVA());
+    TParameter<float> ia("hr_scurve_analog_current", tbInterface->GetIA());
     vd.Write();
     id.Write();
     va.Write();
@@ -95,36 +95,36 @@ void HRSCurve::ModuleAction(void)
 
 void HRSCurve::TakeEfficiencyMap(int ntrig, bool set_vcal, int vcal_offset)
 {
-    TBAnalogInterface * ai = (TBAnalogInterface *) tbInterface;
-    ai->Flush();
-
+    tbInterface->Flush();
 
     /* Unmask ROC */
     for (int iroc = 0; iroc < module->NRocs(); iroc++)
         module->GetRoc(iroc)->EnableAllPixels();
-    ai->Flush();
+    tbInterface->Flush();
 
 
     /* Send a reset to the chip */
-    ai->getCTestboard()->Pg_SetCmd(0, PG_RESR);
-    ai->getCTestboard()->Pg_Single();
-    ai->Flush();
+    tbInterface->getCTestboard()->Pg_SetCmd(0, PG_RESR);
+    tbInterface->getCTestboard()->Pg_Single();
+    tbInterface->Flush();
     gDelay->Mdelay(10);
 
+    int trc = tbInterface->GetParameter("trc");
+    int tct = tbInterface->GetParameter("tct");
+    int ttk = tbInterface->GetParameter("ttk");
+    int deserAdjust = tbInterface->GetParameter("deserAdjust");
+
     /* Prepare the data aquisition (store to testboard RAM) */
-    int memsize = ai->getCTestboard()->Daq_Open(30000000);
-    ai->getCTestboard()->Daq_Select_Deser160(4);
+    int memsize = tbInterface->getCTestboard()->Daq_Open(30000000);
+    tbInterface->getCTestboard()->Daq_Select_Deser160(deserAdjust);
 
     /* Enable DMA (direct memory access) controller */
-    ai->getCTestboard()->Daq_Start();
+    tbInterface->getCTestboard()->Daq_Start();
 
-    int trc = ai->GetParameter("trc");
-    int tct = ai->GetParameter("tct");
-    int ttk = ai->GetParameter("ttk");
-    ai->getCTestboard()->Pg_SetCmd(0, PG_RESR + trc);
-    ai->getCTestboard()->Pg_SetCmd(1, PG_CAL + tct);
-    ai->getCTestboard()->Pg_SetCmd(2, PG_TRG + ttk);
-    ai->getCTestboard()->Pg_SetCmd(3, PG_TOK);
+    tbInterface->getCTestboard()->Pg_SetCmd(0, PG_RESR + trc);
+    tbInterface->getCTestboard()->Pg_SetCmd(1, PG_CAL + tct);
+    tbInterface->getCTestboard()->Pg_SetCmd(2, PG_TRG + ttk);
+    tbInterface->getCTestboard()->Pg_SetCmd(3, PG_TOK);
 
     /* iterate over columns and rows to get each pixel efficiency */
     for (int col = 0; col < 52; col++) {
@@ -135,44 +135,44 @@ void HRSCurve::TakeEfficiencyMap(int ntrig, bool set_vcal, int vcal_offset)
                 if (set_vcal)
                     module->GetRoc(iroc)->SetDAC("Vcal", rough_threshold[iroc]->GetBinContent(col + 1, row + 1) + vcal_offset);
             }
-            ai->CDelay(5000);
-            ai->Flush();
+            tbInterface->CDelay(5000);
+            tbInterface->Flush();
 
             /* send ntrig triggers with calibrates */
             for (int t = 0; t < ntrig; t++) {
-                ai->getCTestboard()->Pg_Single();
-                ai->CDelay(500);
+                tbInterface->getCTestboard()->Pg_Single();
+                tbInterface->CDelay(500);
             }
-            ai->Flush();
+            tbInterface->Flush();
 
             /* Disarm the pixel, but leave it enabled */
             for (int iroc = 0; iroc < module->NRocs(); iroc++) {
                 module->GetRoc(iroc)->DisarmPixel(col, row);
                 module->GetRoc(iroc)->EnablePixel(col, row);
             }
-            ai->Flush();
+            tbInterface->Flush();
         }
     }
 
     /* Stop triggering */
-    ai->getCTestboard()->Pg_Stop();
-    ai->getCTestboard()->Pg_SetCmd(0, PG_RESR);
-    ai->getCTestboard()->Pg_Single();
-    ai->Flush();
+    tbInterface->getCTestboard()->Pg_Stop();
+    tbInterface->getCTestboard()->Pg_SetCmd(0, PG_RESR);
+    tbInterface->getCTestboard()->Pg_Single();
+    tbInterface->Flush();
 
     /* Wait for data aquisition to finish */
     gDelay->Mdelay(100);
 
 
     /* Disable data aquisition */
-    ai->getCTestboard()->Daq_Stop();
-    ai->Flush();
+    tbInterface->getCTestboard()->Daq_Stop();
+    tbInterface->Flush();
 
     /* Number of words in memory */
     //int nwords = (data_end - data_pointer) / 2;
 
     /* Prepare data decoding */
-    RAMRawDataReader rd(ai->getCTestboard(), memsize);
+    RAMRawDataReader rd(tbInterface->getCTestboard(), memsize);
     RawData2RawEvent rs;
     RawEventDecoder ed(module->NRocs(), module->GetRoc(0)->has_analog_readout(), module->GetRoc(0)->has_row_address_inverted());
     EfficiencyMapper em(module->NRocs(), ntrig);
@@ -194,11 +194,11 @@ void HRSCurve::TakeEfficiencyMap(int ntrig, bool set_vcal, int vcal_offset)
     psi::LogInfo() << "Overall efficiency: " << effdist->GetMean() << " %" << psi::endl;
 
     /* Free the memory in the RAM */
-    ai->getCTestboard()->Daq_Close();
+    tbInterface->getCTestboard()->Daq_Close();
 
     /* Reset the chip */
-    ai->getCTestboard()->Pg_SetCmd(0, PG_RESR);
-    ai->getCTestboard()->Pg_Single();
-    ai->Flush();
-    ai->Flush();
+    tbInterface->getCTestboard()->Pg_SetCmd(0, PG_RESR);
+    tbInterface->getCTestboard()->Pg_Single();
+    tbInterface->Flush();
+    tbInterface->Flush();
 }
