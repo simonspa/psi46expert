@@ -3,6 +3,15 @@
 #ifndef MAINFRAME
 #define MAINFRAME
 
+#ifdef __CINT__
+#undef __GNUC__
+typedef char __signed; 
+typedef char int8_t; 
+#define _SYS__SELECT_H_
+struct pthread_cond_t;
+struct pthread_mutex_t;
+#endif
+
 #include <TGButton.h>
 #include <TGButtonGroup.h>
 #include <TGFrame.h>
@@ -55,14 +64,23 @@ public:
 
     void DoTest();
     void DoTest(Test * aTest);
+    void DoAlive(); // DP
     void PreTest();
+    void DoEffvana(); // DP
+    void DoTrim();
+    void DoEffcaldel(); // DP
+    void DoThrMap();
+    void DoADC1();
+    void DoADCn();
+    void DoPhmap(); // DP
+    void DoRBscan(); // DP
     void IV();
     void DoFullTest();
-    void DoTrim();
+
     void DoPhCal();
     void DoUbCheck();
     void DoFom();
-    void DoADC();
+  //DP void DoADC();
     void TestN();
 
     // == Histograms ===========================================
@@ -116,7 +134,7 @@ private:
 
     // == Tests ===========================================================================
 
-    static const Int_t nTests = 24;
+  static const Int_t nTests = 26; // DP
 
     TList * histograms[nTests + 1];
     Int_t currentTest;
